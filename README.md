@@ -1,6 +1,6 @@
 # cdg-supply-chain-security
 
-Automated supply chain security defaults for npm and Python projects. Prevents the class of attacks seen in the [Axios npm compromise](https://snyk.io/blog/axios-npm-package-compromised-supply-chain-attack-delivers-cross-platform/) (March 2026, UNC1069/DPRK) and [LiteLLM PyPI compromise](https://docs.litellm.ai/blog/security-update-march-2026) (March 2026, TeamPCP).
+Automated Dependency Security Guardrails defaults for npm and Python projects. Prevents the class of attacks seen in the [Axios npm compromise](https://snyk.io/blog/axios-npm-package-compromised-supply-chain-attack-delivers-cross-platform/) (March 2026, UNC1069/DPRK) and [LiteLLM PyPI compromise](https://docs.litellm.ai/blog/security-update-march-2026) (March 2026, TeamPCP).
 
 ## What this does
 
@@ -37,7 +37,7 @@ Define the checks once in this repo. Every project repo calls the central workfl
 **Step 2:** In each project repo, create `.github/workflows/supply-chain.yml`:
 
 ```yaml
-name: Supply Chain Security
+name: Dependency Security Guardrails
 
 on:
   pull_request:

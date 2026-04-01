@@ -5,7 +5,7 @@
 # When you update the central workflow, every repo using this
 # picks up the changes automatically.
 
-name: Supply Chain Security
+name: Dependency Security Guardrails
 
 on:
   pull_request:

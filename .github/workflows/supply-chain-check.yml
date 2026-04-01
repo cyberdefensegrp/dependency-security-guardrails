@@ -1,8 +1,8 @@
 # supply-chain-check.yml
-# Reusable workflow for supply chain security checks.
+# Reusable workflow for Dependency Security Guardrails checks.
 # Can be called from other repos via workflow_call, or used standalone.
 
-name: Supply Chain Security
+name: Dependency Security Guardrails
 
 on:
   # Reusable: other repos call this workflow

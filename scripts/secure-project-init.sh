@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # secure-project-init.sh
 #
-# Bootstraps supply chain security defaults for new projects.
+# Bootstraps Dependency Security Guardrails defaults for new projects.
 # Sets up .npmrc, uv/pip config, Dependabot, and git hooks.
 #
 # Usage:
@@ -56,7 +56,7 @@ setup_npm() {
         fi
     else
         cat > .npmrc <<'EOF'
-# Supply chain security defaults
+# Dependency Security Guardrails defaults
 # See: https://github.com/your-org/cdg-supply-chain-security
 ignore-scripts=true
 save-exact=true
@@ -244,7 +244,7 @@ setup_gitignore() {
 # ─────────────────────────────────────────────
 echo ""
 echo "========================================="
-echo "  Supply Chain Security Bootstrap"
+echo "  Dependency Security Guardrails Bootstrap"
 echo "========================================="
 echo ""
 
