@@ -158,3 +158,5 @@ Both attacks would have been blocked by the controls in this repo: `ignore-scrip
 ## License
 
 MIT
+
+> Built and maintained by [Cyber Defense Group](https://www.cdg.io)
