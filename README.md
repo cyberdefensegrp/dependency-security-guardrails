@@ -1,4 +1,4 @@
-# cdg-dependancy-security-guardrails
+# cdg-dependency-security-guardrails
 
 Automated Dependency Security Guardrails defaults for npm and Python projects. Prevents the class of attacks seen in the [Axios npm compromise](https://snyk.io/blog/axios-npm-package-compromised-supply-chain-attack-delivers-cross-platform/) (March 2026, UNC1069/DPRK) and [LiteLLM PyPI compromise](https://docs.litellm.ai/blog/security-update-march-2026) (March 2026, TeamPCP).
 
