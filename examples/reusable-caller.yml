@@ -1,0 +1,33 @@
+# Example: Reusable workflow caller
+# Copy this into any project repo at .github/workflows/supply-chain.yml
+# It calls the central workflow from cdg-supply-chain-security.
+#
+# When you update the central workflow, every repo using this
+# picks up the changes automatically.
+
+name: Supply Chain Security
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "yarn.lock"
+      - "pnpm-lock.yaml"
+      - "requirements.txt"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Pipfile.lock"
+
+jobs:
+  supply-chain:
+    # Update the org/repo below to match your GitHub org
+    uses: your-org/cdg-supply-chain-security/.github/workflows/supply-chain-check.yml@main
+    # Optional: override defaults
+    # with:
+    #   node-version: "20"
+    #   python-version: "3.12"
+    #   audit-level: "high"
+    #   fail-on-floating: true
+    #   fail-on-missing-hashes: true

@@ -1,0 +1,213 @@
+# supply-chain-check.yml
+# Reusable workflow for supply chain security checks.
+# Can be called from other repos via workflow_call, or used standalone.
+
+name: Supply Chain Security
+
+on:
+  # Reusable: other repos call this workflow
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version for npm checks"
+        required: false
+        type: string
+        default: "lts/*"
+      python-version:
+        description: "Python version for pip-audit"
+        required: false
+        type: string
+        default: "3.12"
+      audit-level:
+        description: "npm audit severity threshold (low, moderate, high, critical)"
+        required: false
+        type: string
+        default: "moderate"
+      fail-on-floating:
+        description: "Fail the build if floating version ranges are detected"
+        required: false
+        type: boolean
+        default: false
+      fail-on-missing-hashes:
+        description: "Fail the build if requirements.txt lacks hashes"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # -----------------------------------------------
+  # npm supply chain checks
+  # -----------------------------------------------
+  npm-check:
+    name: npm Security
+    if: hashFiles('package.json') != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify lockfile exists
+        run: |
+          if [ -f "package.json" ] && [ ! -f "package-lock.json" ] && [ ! -f "yarn.lock" ] && [ ! -f "pnpm-lock.yaml" ]; then
+            echo "::error::No lockfile found. A lockfile must be committed to version control."
+            exit 1
+          fi
+
+      - name: Check for floating version ranges
+        run: |
+          if [ -f "package.json" ]; then
+            FLOATS=$(jq -r '
+              (.dependencies // {}) + (.devDependencies // {}) |
+              to_entries[] |
+              select(.value | test("[\\^~*x]|>=|>")) |
+              "\(.key): \(.value)"
+            ' package.json || true)
+
+            if [ -n "$FLOATS" ]; then
+              echo "::warning::Floating version ranges detected. Pin to exact versions."
+              echo "$FLOATS"
+              if [ "${{ inputs.fail-on-floating }}" = "true" ]; then
+                echo "::error::Floating versions are not allowed (fail-on-floating=true)."
+                exit 1
+              fi
+            else
+              echo "All versions are exact-pinned."
+            fi
+          fi
+
+      - name: Check .npmrc for ignore-scripts
+        run: |
+          if [ -f ".npmrc" ]; then
+            if grep -q "ignore-scripts=true" .npmrc; then
+              echo "ignore-scripts=true is set."
+            else
+              echo "::warning::.npmrc exists but ignore-scripts is not enabled. Add ignore-scripts=true."
+            fi
+          else
+            echo "::warning::No .npmrc found. Create one with ignore-scripts=true."
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install dependencies (with ignore-scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Verify npm provenance signatures
+        run: |
+          echo "## npm Provenance Check" >> "$GITHUB_STEP_SUMMARY"
+          OUTPUT=$(npm audit signatures 2>&1) || true
+          echo "$OUTPUT"
+          # Count packages missing signatures
+          MISSING=$(echo "$OUTPUT" | grep -c "missing" || true)
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning::${MISSING} package(s) missing registry signatures."
+            echo ":warning: ${MISSING} package(s) missing registry signatures." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo ":white_check_mark: All packages have valid signatures." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run npm audit
+        run: |
+          echo "## npm Audit" >> "$GITHUB_STEP_SUMMARY"
+          if npm audit --audit-level=${{ inputs.audit-level }} 2>&1; then
+            echo ":white_check_mark: No vulnerabilities at or above **${{ inputs.audit-level }}** severity." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo ":x: Vulnerabilities found at **${{ inputs.audit-level }}** severity or above." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # -----------------------------------------------
+  # Python supply chain checks
+  # -----------------------------------------------
+  python-check:
+    name: Python Security
+    if: hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' || hashFiles('uv.lock') != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Verify lockfile or hashes exist
+        run: |
+          if [ -f "pyproject.toml" ] && [ ! -f "uv.lock" ] && [ ! -f "requirements.txt" ]; then
+            echo "::error::No lockfile found. Commit uv.lock or a hashed requirements.txt."
+            exit 1
+          fi
+
+          if [ -f "requirements.txt" ]; then
+            if ! grep -q "\-\-hash" requirements.txt; then
+              echo "::warning::requirements.txt has no hashes. Generate with: uv pip compile --generate-hashes"
+              if [ "${{ inputs.fail-on-missing-hashes }}" = "true" ]; then
+                echo "::error::Missing hashes not allowed (fail-on-missing-hashes=true)."
+                exit 1
+              fi
+            else
+              echo "Hash-verified requirements.txt found."
+            fi
+          fi
+
+      - name: Check for unpinned dependencies
+        run: |
+          if [ -f "requirements.txt" ]; then
+            UNPINNED=$(grep -vE '^(#|-|\s*$|.*==|.*--hash)' requirements.txt || true)
+            if [ -n "$UNPINNED" ]; then
+              echo "::warning::Unpinned dependencies found:"
+              echo "$UNPINNED"
+            else
+              echo "All dependencies are pinned."
+            fi
+          fi
+
+      - name: Audit with pip-audit
+        run: |
+          uv pip install pip-audit --system
+          echo "## Python Audit" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "requirements.txt" ]; then
+            pip-audit -r requirements.txt --strict 2>&1 || true
+          elif [ -f "pyproject.toml" ]; then
+            pip-audit --strict 2>&1 || true
+          fi
+
+  # -----------------------------------------------
+  # Lockfile diff summary
+  # -----------------------------------------------
+  lockfile-diff:
+    name: Lockfile Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Summarize lockfile changes
+        run: |
+          LOCKFILES="package-lock.json yarn.lock pnpm-lock.yaml uv.lock requirements.txt Pipfile.lock"
+          HAS_CHANGES=false
+
+          echo "## Dependency Changes" >> "$GITHUB_STEP_SUMMARY"
+
+          for f in $LOCKFILES; do
+            if git diff origin/main...HEAD --name-only 2>/dev/null | grep -q "^${f}$"; then
+              ADDED=$(git diff origin/main...HEAD -- "$f" | grep -c "^+" || true)
+              REMOVED=$(git diff origin/main...HEAD -- "$f" | grep -c "^-" || true)
+              echo "- **${f}**: +${ADDED} / -${REMOVED} lines changed" >> "$GITHUB_STEP_SUMMARY"
+              HAS_CHANGES=true
+            fi
+          done
+
+          if [ "$HAS_CHANGES" = true ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> :mag: Review dependency changes carefully. New maintainers, missing provenance, or unexpected transitive deps are red flags." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No lockfile changes detected." >> "$GITHUB_STEP_SUMMARY"
+          fi
