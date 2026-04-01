@@ -17,11 +17,11 @@ Automated Dependency Security Guardrails defaults for npm and Python projects. P
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/cdg-supply-chain-security.git
+git clone https://github.com/your-org/dependency-security-guardrails.git
 
 # Bootstrap a project
 cd /path/to/your-project
-bash /path/to/cdg-supply-chain-security/scripts/secure-project-init.sh npm     # or python, or both
+bash /path/to/dependency-security-guardrails/scripts/secure-project-init.sh npm     # or python, or both
 ```
 
 The bootstrap script sets up `.npmrc`, virtualenv, Dependabot config, `.gitignore` entries, and a git pre-commit hook that warns on lockfile changes.
@@ -54,7 +54,7 @@ on:
 
 jobs:
   supply-chain:
-    uses: your-org/cdg-supply-chain-security/.github/workflows/supply-chain-check.yml@main
+    uses: your-org/dependency-security-guardrails/.github/workflows/supply-chain-check.yml@main
 ```
 
 **Optional inputs** you can override:
@@ -62,7 +62,7 @@ jobs:
 ```yaml
 jobs:
   supply-chain:
-    uses: your-org/cdg-supply-chain-security/.github/workflows/supply-chain-check.yml@main
+    uses: your-org/dependency-security-guardrails/.github/workflows/supply-chain-check.yml@main
     with:
       node-version: "20"
       python-version: "3.12"
@@ -132,7 +132,7 @@ https://socket.dev
 ## Repo structure
 
 ```
-cdg-supply-chain-security/
+dependency-security-guardrails/
   .github/
     workflows/
       supply-chain-check.yml    # Reusable workflow (Option A)
